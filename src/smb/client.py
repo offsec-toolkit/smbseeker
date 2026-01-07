@@ -1,5 +1,6 @@
 import logging
 import socket
+import time
 from typing import List, Optional, Dict, Any
 from impacket.smbconnection import SMBConnection
 from .session import SMBSession
@@ -16,7 +17,7 @@ class SMBClient:
         self.connection: Optional[SMBConnection] = None
         self.session: Optional[SMBSession] = None
 
-    import time
+
 
     def connect(self, session: SMBSession, retries: int = 3, delay: int = 2) -> bool:
         """Establishes an SMB connection and authenticates with retry logic."""
@@ -136,14 +137,23 @@ class SMBClient:
             # Simple workaround: we read everything, but we expect the caller to check size first.
             # For better QA, let's implement a size-safe read.
             
+        tid = None
+        fid = None
+        try:
             tid = self.connection.connectTree(share_name)
             fid = self.connection.openFile(tid, file_path)
             content = self.connection.readFile(tid, fid, offset=0, bytesToRead=max_size)
-            self.connection.closeFile(tid, fid)
             return content
         except Exception as e:
             logger.error(f"Failed to get file content from {share_name}:{file_path}: {e}")
             return b""
+        finally:
+            if fid is not None:
+                try: self.connection.closeFile(tid, fid)
+                except: pass
+            if tid is not None:
+                try: self.connection.disconnectTree(tid)
+                except: pass
 
     def disconnect(self):
         """Closes the SMB connection."""
