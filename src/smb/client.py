@@ -97,6 +97,20 @@ class SMBClient:
             logger.error(f"Failed to list files in {share_name}:{path}: {e}")
             return files
 
+    def get_file_content(self, share_name: str, file_path: str) -> bytes:
+        """Retrieves the content of a file from a share."""
+        if not self.connection:
+            return b""
+            
+        import io
+        file_obj = io.BytesIO()
+        try:
+            self.connection.getFile(share_name, file_path, file_obj.write)
+            return file_obj.getvalue()
+        except Exception as e:
+            logger.error(f"Failed to get file content from {share_name}:{file_path}: {e}")
+            return b""
+
     def disconnect(self):
         """Closes the SMB connection."""
         if self.connection:
