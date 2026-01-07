@@ -83,8 +83,9 @@ def scan(
                     
                     for f_info in files:
                         if not f_info['is_directory']:
-                            # For simplicity, we only analyze small files in this CLI example
-                            content = client.get_file_content(share_name, f_info['name'])
+                            # Only analyze the beginning of files to stay fast and memory-safe
+                            # max_size is set to 1MB by default in get_file_content
+                            content = client.get_file_content(share_name, f_info['path'])
                             
                             # Analyze with built-in analyzer
                             findings = analyzer.analyze(content, f_info)
@@ -96,7 +97,7 @@ def scan(
                             result_record = {
                                 "target": ip,
                                 "share": share_name,
-                                "file_path": f_info.get('path', ''),
+                                "file_path": f_info['path'],
                                 "file_name": f_info['name'],
                                 "is_directory": False,
                                 "size": f_info['size'],

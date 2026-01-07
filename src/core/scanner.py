@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import socket
-from typing import List, AsyncGenerator
+from typing import List, AsyncGenerator, Optional
 import ipaddress
 
 logger = logging.getLogger(__name__)
