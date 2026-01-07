@@ -16,34 +16,48 @@ class SMBClient:
         self.connection: Optional[SMBConnection] = None
         self.session: Optional[SMBSession] = None
 
-    def connect(self, session: SMBSession) -> bool:
-        """Establishes an SMB connection and authenticates."""
-        try:
-            self.session = session
-            self.connection = SMBConnection(
-                self.target, 
-                self.target, 
-                sess_port=self.port, 
-                timeout=self.timeout
-            )
-            
-            if session.use_guest or session.is_anonymous:
-                self.connection.login('', '')
-            else:
-                self.connection.login(
-                    session.username,
-                    session.password,
-                    domain=session.domain,
-                    lmhash=session.lmhash,
-                    nthash=session.nthash
+    import time
+
+    def connect(self, session: SMBSession, retries: int = 3, delay: int = 2) -> bool:
+        """Establishes an SMB connection and authenticates with retry logic."""
+        self.session = session
+        attempt = 0
+        
+        while attempt < retries:
+            try:
+                self.connection = SMBConnection(
+                    self.target, 
+                    self.target, 
+                    sess_port=self.port, 
+                    timeout=self.timeout
                 )
-            
-            logger.info(f"Successfully authenticated to {self.target}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect/authenticate to {self.target}: {e}")
-            self.connection = None
-            return False
+                
+                if session.use_guest or session.is_anonymous:
+                    self.connection.login('', '')
+                else:
+                    self.connection.login(
+                        session.username,
+                        session.password,
+                        domain=session.domain,
+                        lmhash=session.lmhash,
+                        nthash=session.nthash
+                    )
+                
+                logger.info(f"Successfully authenticated to {self.target} (Attempt {attempt + 1})")
+                return True
+            except (socket.timeout, TimeoutError):
+                attempt += 1
+                logger.warning(f"Host {self.target} timeout, retrying... ({attempt}/{retries})")
+                if attempt < retries:
+                    time.sleep(delay)
+            except Exception as e:
+                logger.error(f"Failed to connect/authenticate to {self.target}: {e}")
+                # Potentially add downgrade logic here if needed for older SMB versions
+                # For now, we stop on fatal errors unless it's a timeout
+                break
+        
+        self.connection = None
+        return False
 
     def list_shares(self) -> List[Dict[str, Any]]:
         """Lists available shares on the target."""

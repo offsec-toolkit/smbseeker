@@ -40,6 +40,10 @@ def scan(
         scanner = Scanner(concurrency=concurrency)
         analyzer = ContentAnalyzer()
         
+        # Load plugins
+        plugin_manager = PluginManager(os.path.join(os.path.dirname(__file__), "..", "plugins"))
+        plugin_manager.load_plugins()
+        
         # 1. Discover targets
         found_ips = []
         with Progress(
@@ -67,7 +71,7 @@ def scan(
         all_results = []
         for ip in found_ips:
             client = SMBClient(ip)
-            if client.connect(session):
+            if client.connect(session, retries=3):
                 shares = client.list_shares()
                 for share in shares:
                     share_name = share['name']
@@ -80,9 +84,14 @@ def scan(
                     for f_info in files:
                         if not f_info['is_directory']:
                             # For simplicity, we only analyze small files in this CLI example
-                            # Real implementation would download/stream content
-                            content = b"" # TODO: client.get_file_content(share_name, f_info['name'])
+                            content = client.get_file_content(share_name, f_info['name'])
+                            
+                            # Analyze with built-in analyzer
                             findings = analyzer.analyze(content, f_info)
+                            
+                            # Analyze with plugins
+                            for plugin in plugin_manager.plugins:
+                                findings.extend(plugin.analyze(content, f_info))
                             
                             result_record = {
                                 "target": ip,

@@ -3,6 +3,12 @@ import logging
 from typing import List, Dict, Any
 from .analyzer import BaseAnalyzer
 
+try:
+    import yara
+    YARA_AVAILABLE = True
+except ImportError:
+    YARA_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class ContentAnalyzer(BaseAnalyzer):
@@ -35,9 +41,8 @@ class ContentAnalyzer(BaseAnalyzer):
     def analyze(self, content: bytes, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         findings = []
         try:
-            # Try to decode content (with fallback)
+            # 1. Regex Analysis
             text = content.decode('utf-8', errors='ignore')
-            
             for name, pattern in self.compiled_patterns.items():
                 matches = pattern.finditer(text)
                 for match in matches:
@@ -46,8 +51,16 @@ class ContentAnalyzer(BaseAnalyzer):
                         "match": match.group(0),
                         "line": text.count('\n', 0, match.start()) + 1,
                         "file": metadata.get("name"),
-                        "share": metadata.get("share")
+                        "share": metadata.get("share"),
+                        "analyzer": "regex"
                     })
+            
+            # 2. YARA Analysis (if available)
+            if YARA_AVAILABLE:
+                # We expect YARA rules to be provided via metadata or a central store
+                # Here we mock a simple rule check if patterns are provided as yara rules
+                pass # Implementation would use yara.match(data=content)
+
         except Exception as e:
             logger.error(f"Error analyzing content: {e}")
             
