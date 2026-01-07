@@ -1,0 +1,7 @@
+impacket>=0.11.0
+typer>=0.9.0
+rich>=13.0.0
+sqlalchemy>=2.0.0
+asyncio
+uvloop; sys_platform != 'win32'
+python-dotenv
